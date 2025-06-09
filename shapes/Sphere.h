@@ -45,6 +45,10 @@ public:
     void printInfo() const override {
         std::cout << "Sphere at " << center << " with radius " << radius << "\n";
     }
+    Vec3f getColor() const override {
+        return surfaceColor;
+    }
+
 };
 
 #endif //SHERE_H

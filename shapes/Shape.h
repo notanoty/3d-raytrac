@@ -15,6 +15,8 @@ public:
     virtual void printInfo() const = 0;
 
     virtual bool intersect(const Vec3f &rayorig, const Vec3f &raydir, float &t0, float &t1) const = 0;
+
+    virtual Vec3f getColor() const = 0;
 };
 
 
