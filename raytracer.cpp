@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iostream>
 #include <__ostream/basic_ostream.h>
+#include <algorithm>
 
 #include "shapes/Sphere.h"
 
@@ -27,25 +28,27 @@ void render(const std::vector<std::shared_ptr<Shape>>& objects) {
             Vec3f rayDirection = (Vec3f(x, y, -1) - rayOrigin).normalize();
 
 
-            float t0, t1;
-            for (const auto & object : objects) {
+            float closestT = std::numeric_limits<float>::max();
+            bool hitSomething = false;
+            Vec3f pixelColor(0, 0, 0);
 
-                const bool hit = object->intersect(rayOrigin, rayDirection, t0, t1);
-                // if (hit) {
-                    std::cout << "Ray hit the sphere at t0 = " << t0 << ", t1 = " << t1 << "\n";
-                    float brightness = 1 - (t0 - 1) / (5 - 1);
+            for (const auto& object : objects) {
+                float t0, t1;
+                if (object->intersect(rayOrigin, rayDirection, t0, t1)) {
+                    if (t0 < 0) t0 = t1;
+                    if (t0 < closestT) {
+                        closestT = t0;
+                        hitSomething = true;
+                        float brightness = 1 - (t0 - 1) / (10 - 1);
 
+                        if (brightness < 0.0f) brightness = 0.0f;
+                        else if (brightness > 1.0f) brightness = 1.0f;
 
-                    int brightness255 = static_cast<int>(brightness * 255);
-                    if (brightness255 > 255) brightness255 = 255;
-                    if (brightness255 < 0) brightness255 = 0;
-
-                    *pixel = Vec3f(brightness, brightness, brightness);
-                // }
-                // else {
-                //     *pixel =  Vec3f(0, 0, 0);
-                // }
+                        pixelColor = Vec3f(brightness * object->getColor().x, brightness * object->getColor().y, brightness * object->getColor().z);
+                    }
+                }
             }
+            *pixel = hitSomething ? pixelColor : Vec3f(0, 0, 0);
         }
 
     }
@@ -66,19 +69,25 @@ int main() {
 
     std::vector<std::shared_ptr<Shape>> objects;
     objects.push_back(std::make_shared<Sphere>(
-        Vec3f(-1.5, 2, -4), 1, Vec3f(0.90, 0.76, 0.46), 1, 0.0
+        Vec3f(-1.5, 2, -5), 1.5, Vec3f(0.90, 0.76, 0.0), 1, 0.0
     ));
     objects.push_back(std::make_shared<Sphere>(
-        Vec3f(-1.5, 3, -4), 1, Vec3f(0.90, 0.76, 0.46), 1, 0.1
+        Vec3f(-1.5, 3, -5), 1.5, Vec3f(0.0, 0.0, 1), 1, 0.1
     ));
 
     objects.push_back(std::make_shared<Sphere>(
-        Vec3f(0, -0, -5), 1.5, Vec3f(0.90, 0.76, 0.46), 1, 0.0
+        Vec3f(0, -1, -5), 1.5, Vec3f(0.90, 0.76, 0.0), 1, 0.0
     ));
     objects.push_back(std::make_shared<Sphere>(
-        Vec3f(-2, -0, -5), 1.5, Vec3f(0.90, 0.76, 0.46), 1, 0.0
+        Vec3f(-2, -1, -5), 1.5, Vec3f(0.90, 0.0, 0.0), 1, 0.0
     ));
 
+    objects.push_back(std::make_shared<Sphere>(
+        Vec3f(0, -1, -5), 1.5, Vec3f(0.90, 0.76, 0.0), 1, 0.0
+    ));
+    objects.push_back(std::make_shared<Sphere>(
+        Vec3f(-2, -1, -5), 1.5, Vec3f(0.90, 0.0, 0.0), 1, 0.0
+    ));
 
     // Sphere s(Sphere(Vec3f(0, 0, -5), 2.0f, Vec3f(1, 0, 0)));
     render(objects);
