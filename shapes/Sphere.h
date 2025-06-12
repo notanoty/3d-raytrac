@@ -48,6 +48,17 @@ public:
     Vec3f getColor() const override {
         return surfaceColor;
     }
+    Vec3f getEmission() const override {
+        return emissionColor;
+    }
+
+    bool hasEmission() const override {
+        return emissionColor.x > 0 && emissionColor.y > 0 && emissionColor.z > 0;
+    }
+
+    Vec3f getPosition() const override {
+        return center;
+    }
 
 };
 

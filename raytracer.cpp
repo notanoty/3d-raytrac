@@ -9,53 +9,117 @@
 
 #include "shapes/Sphere.h"
 
+#define WIDTH 900
+#define HEIGHT 900
+
+// #define FAR 7
+// #define NEAR 1
+
+#define MAX_DEPTH 10
+// consts
+
+const Vec3f rayOrigin(0, 0, 0);
+Vec3f calcShadowRay(const Vec3f &hitPoint,
+                    const Vec3f &normal,
+                    const std::vector<std::shared_ptr<Shape>> &lightObjects,
+                    const std::vector<std::shared_ptr<Shape>> &objects) {
+
+    Vec3f totalLight(0, 0, 0);
+    float bias = 1e-4;
+
+    for (const auto& light : lightObjects) {
+        Vec3f lightDir = light->getPosition() - hitPoint;
+        float lightDistance = lightDir.length();
+        lightDir.normalize();
+
+        Vec3f shadowOrigin = hitPoint + normal * bias;
+        bool inShadow = false;
+
+        for (const auto& obj : objects) {
+            float t0, t1;
+            if (obj->intersect(shadowOrigin, lightDir, t0, t1)) {
+                if (t0 > 0 && t0 < lightDistance) {
+                    inShadow = true;
+                    break;
+                }
+            }
+        }
+
+        if (!inShadow) {
+            float intensity = std::max(0.f, normal.dot(lightDir));
+            totalLight += light->getEmission() * intensity;
+        }
+    }
+
+    return totalLight;
+}
+
+
+Vec3f trace(
+    const Vec3f &rayorig,
+    const Vec3f &raydir,
+    const std::vector<std::shared_ptr<Shape>>& objects,
+    const int &depth){
+    if (depth == -1) {
+        std::cout<<"depth should be -1"<<std::endl;
+    }
+    float closestT = std::numeric_limits<float>::max();
+    bool hitSomething = false;
+    Vec3f pixelColor(0, 0, 0);
+
+    std::vector<std::shared_ptr<Shape>> lightObjects;
+    for (const auto& object : objects) {
+        if (object->hasEmission()) {
+            lightObjects.push_back(object);
+        }
+    }
+
+
+    for (const auto& object : objects) {
+        float t0, t1;
+        if (object->intersect(rayOrigin, raydir, t0, t1)) {
+            if (t0 < 0) t0 = t1;
+            if (t0 < closestT) {
+                closestT = t0;
+                hitSomething = true;
+                Vec3f intersectionPoint = rayOrigin + raydir * t0;
+                if (object->hasEmission()) {
+                    pixelColor = Vec3f( object->getColor().x,  object->getColor().y, object->getColor().z);
+                }
+                else {
+                    pixelColor = Vec3f(1, 1, 1);
+                }
+                // pixelColor = calcShadowRay(intersectionPoint,)
+            }
+        }
+    }
+    return hitSomething ? pixelColor : Vec3f(0, 0, 0);
+}
+
 void render(const std::vector<std::shared_ptr<Shape>>& objects) {
 
-    const int width = 800;
-    const int height = 600;
-    Vec3f *image = new Vec3f[width * height], *pixel = image;
-    float aspect_ratio = static_cast<float>(width) / height;
+    Vec3f *image = new Vec3f[WIDTH * HEIGHT], *pixel = image;
+    float aspect_ratio = static_cast<float>(WIDTH) / HEIGHT;
 
-    Vec3f rayOrigin(0, 0, 0);
 
-    for (int i = 0; i < height; ++i) {
-        for (int j = 0; j < width; ++j, ++pixel) {
-            const float x_screen = (static_cast<float>(j) + 0.5f) / width;
-            const float y_screen = (static_cast<float>(i) + 0.5f) / height;
+    for (int i = 0; i < HEIGHT; ++i) {
+        for (int j = 0; j < WIDTH; ++j, ++pixel) {
+            const float x_screen = (static_cast<float>(j) + 0.5f) / WIDTH;
+            const float y_screen = (static_cast<float>(i) + 0.5f) / HEIGHT;
 
             const float x = (2 * x_screen - 1) * aspect_ratio;
             const float y = 1 - 2 * y_screen;
             Vec3f rayDirection = (Vec3f(x, y, -1) - rayOrigin).normalize();
 
 
-            float closestT = std::numeric_limits<float>::max();
-            bool hitSomething = false;
-            Vec3f pixelColor(0, 0, 0);
-
-            for (const auto& object : objects) {
-                float t0, t1;
-                if (object->intersect(rayOrigin, rayDirection, t0, t1)) {
-                    if (t0 < 0) t0 = t1;
-                    if (t0 < closestT) {
-                        closestT = t0;
-                        hitSomething = true;
-                        float brightness = 1 - (t0 - 1) / (10 - 1);
-
-                        if (brightness < 0.0f) brightness = 0.0f;
-                        else if (brightness > 1.0f) brightness = 1.0f;
-
-                        pixelColor = Vec3f(brightness * object->getColor().x, brightness * object->getColor().y, brightness * object->getColor().z);
-                    }
-                }
-            }
-            *pixel = hitSomething ? pixelColor : Vec3f(0, 0, 0);
+            *pixel = trace(rayOrigin, rayDirection, objects, -1);
         }
 
     }
 
     std::ofstream ofs("./output.ppm", std::ios::out | std::ios::binary);
-    ofs << "P6\n" << width << " " << height << "\n255\n";
-    for (unsigned i = 0; i < width * height; ++i) {
+    ofs << "P6\n" << WIDTH << " " << HEIGHT << "\n255\n";
+    for (unsigned i = 0; i < WIDTH * HEIGHT; ++i) {
         ofs << (unsigned char)(std::min(float(1), image[i].x) * 255) <<
                (unsigned char)(std::min(float(1), image[i].y) * 255) <<
                (unsigned char)(std::min(float(1), image[i].z) * 255);
@@ -69,25 +133,23 @@ int main() {
 
     std::vector<std::shared_ptr<Shape>> objects;
     objects.push_back(std::make_shared<Sphere>(
-        Vec3f(-1.5, 2, -5), 1.5, Vec3f(0.90, 0.76, 0.0), 1, 0.0
+        Vec3f(-1.5, 2, -5), 1.5, Vec3f(0.90, 0.76, 0.0), 1, 0.0, Vec3f(1)
     ));
     objects.push_back(std::make_shared<Sphere>(
         Vec3f(-1.5, 3, -5), 1.5, Vec3f(0.0, 0.0, 1), 1, 0.1
     ));
 
     objects.push_back(std::make_shared<Sphere>(
-        Vec3f(0, -1, -5), 1.5, Vec3f(0.90, 0.76, 0.0), 1, 0.0
+        Vec3f(0, -0, -5), 1.5, Vec3f(0.90, 0.76, 0.0), 1, 0.0
     ));
+
     objects.push_back(std::make_shared<Sphere>(
         Vec3f(-2, -1, -5), 1.5, Vec3f(0.90, 0.0, 0.0), 1, 0.0
     ));
 
-    objects.push_back(std::make_shared<Sphere>(
-        Vec3f(0, -1, -5), 1.5, Vec3f(0.90, 0.76, 0.0), 1, 0.0
-    ));
-    objects.push_back(std::make_shared<Sphere>(
-        Vec3f(-2, -1, -5), 1.5, Vec3f(0.90, 0.0, 0.0), 1, 0.0
-    ));
+    // objects.push_back(std::make_shared<Sphere>(
+    //     Vec3f(0, -1, -5), 1.5, Vec3f(0.90, 0.76, 0.0), 1, 0.0
+    // ));
 
     // Sphere s(Sphere(Vec3f(0, 0, -5), 2.0f, Vec3f(1, 0, 0)));
     render(objects);
