@@ -45,10 +45,10 @@ Vec3f calcShadowRay(const Vec3f &hitPoint,
             }
         }
 
-        if (!inShadow) {
-            float intensity = std::max(0.f, normal.dot(lightDir));
-            totalLight += light->getEmission() * intensity;
-        }
+        // if (!inShadow) {
+        float intensity = std::max(0.f, normal.dot(lightDir));
+        totalLight += light->getEmission() * intensity;
+        // }
     }
 
     return totalLight;
@@ -60,12 +60,14 @@ Vec3f trace(
     const Vec3f &raydir,
     const std::vector<std::shared_ptr<Shape>>& objects,
     const int &depth){
-    if (depth == -1) {
-        std::cout<<"depth should be -1"<<std::endl;
-    }
+
     float closestT = std::numeric_limits<float>::max();
+    std::shared_ptr<Shape> hitObject = nullptr;
+
+    Vec3f hitPoint, normal;
+
     bool hitSomething = false;
-    Vec3f pixelColor(0, 0, 0);
+    Vec3f pixelColor(0.1, 0.1, 0.1);
 
     std::vector<std::shared_ptr<Shape>> lightObjects;
     for (const auto& object : objects) {
@@ -77,24 +79,30 @@ Vec3f trace(
 
     for (const auto& object : objects) {
         float t0, t1;
-        if (object->intersect(rayOrigin, raydir, t0, t1)) {
+        if (object->intersect(rayorig, raydir, t0, t1)) {
             if (t0 < 0) t0 = t1;
             if (t0 < closestT) {
                 closestT = t0;
-                hitSomething = true;
-                Vec3f intersectionPoint = rayOrigin + raydir * t0;
-                if (object->hasEmission()) {
-                    pixelColor = Vec3f( object->getColor().x,  object->getColor().y, object->getColor().z);
-                }
-                else {
-                    pixelColor = Vec3f(1, 1, 1);
-                }
-                // pixelColor = calcShadowRay(intersectionPoint,)
+                hitObject = object;
             }
         }
     }
-    return hitSomething ? pixelColor : Vec3f(0, 0, 0);
+
+    if (hitObject) {
+        hitPoint = rayorig + raydir * closestT;
+        normal = hitObject->getNormal(hitPoint);
+
+        if (hitObject->hasEmission()) {
+            pixelColor = hitObject->getEmission();
+        } else {
+            Vec3f lightContribution = calcShadowRay(hitPoint, normal, lightObjects, objects);
+            pixelColor = hitObject->getColor() * lightContribution;
+        }
+    }
+
+    return pixelColor;
 }
+    // return hitSomething ? pixelColor : Vec3f(0, 0, 0);
 
 void render(const std::vector<std::shared_ptr<Shape>>& objects) {
 
@@ -133,14 +141,17 @@ int main() {
 
     std::vector<std::shared_ptr<Shape>> objects;
     objects.push_back(std::make_shared<Sphere>(
-        Vec3f(-1.5, 2, -5), 1.5, Vec3f(0.90, 0.76, 0.0), 1, 0.0, Vec3f(1)
+        Vec3f(-1.5, 5, -5), 2, Vec3f(0.90, 0.76, 0.0), 1, 0.0, Vec3f(1,1, 1)
     ));
     objects.push_back(std::make_shared<Sphere>(
-        Vec3f(-1.5, 3, -5), 1.5, Vec3f(0.0, 0.0, 1), 1, 0.1
+        Vec3f(-1.5, -5, -5), 1.5, Vec3f(0.90, 0.76, 0.0), 1, 0.0, Vec3f(1)
     ));
+    // objects.push_back(std::make_shared<Sphere>(
+    //     Vec3f(-1.5, 3, -5), 1.5, Vec3f(0.0, 0.0, 1), 1, 0.1
+    // ));
 
     objects.push_back(std::make_shared<Sphere>(
-        Vec3f(0, -0, -5), 1.5, Vec3f(0.90, 0.76, 0.0), 1, 0.0
+        Vec3f(2, -1, -5), 1.5, Vec3f(0.90, 0.76, 0.0), 1, 0.0
     ));
 
     objects.push_back(std::make_shared<Sphere>(

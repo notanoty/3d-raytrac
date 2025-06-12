@@ -53,11 +53,15 @@ public:
     }
 
     bool hasEmission() const override {
-        return emissionColor.x > 0 && emissionColor.y > 0 && emissionColor.z > 0;
+        return emissionColor.x > 0 || emissionColor.y > 0 || emissionColor.z > 0;
     }
 
     Vec3f getPosition() const override {
         return center;
+    }
+
+    Vec3f getNormal(const Vec3f &point) const override {
+        return (point - center).normalize();
     }
 
 };

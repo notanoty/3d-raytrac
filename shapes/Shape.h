@@ -21,6 +21,7 @@ public:
     virtual bool hasEmission() const = 0;
 
     virtual Vec3f getPosition() const = 0;
+    virtual Vec3f getNormal(const Vec3f &point) const = 0;
 };
 
 
